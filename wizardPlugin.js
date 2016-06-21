@@ -10,7 +10,7 @@
  * html:
  * wizardDiv
  *    div#wizardprogress with aria-valuemin and aria-valuemax set
- *    form#mainForm to contain the inputs
+ *    form.wizardForm to contain the inputs
  *    div.tab-pane with data-progress set to a value which will be used as a progress bar step number
  *    button#next
  *    button#previous
@@ -21,38 +21,47 @@ var wizardPlugin = (function(wizardDiv){
 	var my = {};
 
 	//PRIVATE
-	var wizardDiv, nextButton, prevButton, progressBar;
+	var $wizardDiv, $wizardForm, $nextButton, $prevButton, $progressBar;
 
 	function init(initWizardDiv) {
-		wizardDiv = initWizardDiv;
-		nextButton = wizardDiv.find("button#next");
-		prevButton = wizardDiv.find("button#previous");
-		progressBar = wizardDiv.find("#wizardprogress");
+		$wizardDiv = initWizardDiv;
+		$wizardForm = $wizardDiv.find("form.wizardForm");
+		$nextButton = $wizardDiv.find("button.next");
+		$prevButton = $wizardDiv.find("button.previous");
+		$progressBar = $wizardDiv.find("#wizardprogress");
 
 		//register events for next/previous buttons
-		nextButton.click(function () { activateNextPane(); });
-		prevButton.click(function() { activatePrevPane(); });
+		$nextButton.click(function () { activateNextPane(); });
+		$prevButton.click(function() { activatePrevPane(); });
 
 		//register events for valid/invalid state change
-		$("#mainForm").on("invalid.bs.validator", function(e) {
+		$wizardForm.on("invalid.bs.validator", function(e) {
 			//mark the field as invalid
 			$(e.relatedTarget).attr("data-isvalid", false);
 
-			activateButtons();
-		});
 
-		$("#mainForm").on("valid.bs.validator", function(e) {
+			updateActiveButtons();
+		}).on("valid.bs.validator", function(e) {
 			//mark the field as valid
 			$(e.relatedTarget).attr("data-isvalid", true);
 
-			activateButtons();
+			updateActiveButtons();
 		});
+
+		//register event for updating results
+		$wizardDiv.find(".wizardForm input").change(function(e) {
+			console.log($(e.target).val());
+			console.log($(e.target).attr("id") + "-result");
+			var resultsDivId = $(e.target).attr("id") + "-result";
+			$wizardDiv.find("div.results #" + resultsDivId).html($(e.target).val());
+		});
+
 	}
 
 	function isFormValid(options) {
 		var visibility = (options.visibleOnly ? ":visible" : "");
 		var valid = true;
-		$("#mainForm input" + visibility).each(function(index, element) {
+		$wizardForm.find("input" + visibility).each(function(index, element) {
 			if (! ($(element).attr("data-isvalid") && $(element).attr("data-isvalid") === 'true') ) {
 				valid = false;
 			}
@@ -62,16 +71,16 @@ var wizardPlugin = (function(wizardDiv){
 	}
 
 	//progress bar has attributes that define min, max. we just need to know the current step
-	function updateProgressBar(progressBar, step) {
-		var minStep = progressBar.attr("aria-valuemin");
-		var maxStep = progressBar.attr("aria-valuemax");
+	function updateProgressBar($progressBar, step) {
+		var minStep = $progressBar.attr("aria-valuemin");
+		var maxStep = $progressBar.attr("aria-valuemax");
 
 		var numSteps = maxStep - minStep;
 		var stepWidth = 100 / numSteps;
 
-		progressBar.css("width", (step*stepWidth) + "%");
-		progressBar.html(step + "/" + maxStep);
-		progressBar.attr("aria-valuenow", step);
+		$progressBar.css("width", (step*stepWidth) + "%");
+		$progressBar.html(step + "/" + maxStep);
+		$progressBar.attr("aria-valuenow", step);
 	}
 
 
@@ -80,16 +89,16 @@ var wizardPlugin = (function(wizardDiv){
 		var newStep = newActivePane.attr("data-progress");
 
 		//hide/show the proper tab-pane
-		activePane.removeClass("active").hide();
-		newActivePane.addClass("active").show();
+		activePane.removeClass("active");
+		newActivePane.addClass("active");
 
-		updateProgressBar(progressBar, newStep);
+		updateProgressBar($progressBar, newStep);
 
-		activateButtons();
+		updateActiveButtons();
 	}
 
 	function activatePrevPane() {
-		var activePane = wizardDiv.find(".tab-pane.active");
+		var activePane = $wizardDiv.find(".tab-pane.active");
 		if (! activePane.is(":first-child")) {
 			var newActivePane = activePane.prev("div.tab-pane");
 			activatePane(activePane, newActivePane);
@@ -97,31 +106,31 @@ var wizardPlugin = (function(wizardDiv){
 	}
 
 	function activateNextPane() {
-		var activePane = wizardDiv.find(".tab-pane.active");
+		var activePane = $wizardDiv.find(".tab-pane.active");
 		if (! activePane.is(":last-child")) {
 			var newActivePane = activePane.next("div.tab-pane");
 			activatePane(activePane, newActivePane);
 		}
 	}
 
-	function activateButtons() {
-		var activePane = wizardDiv.find(".tab-pane.active");
+	function updateActiveButtons() {
+		var activePane = $wizardDiv.find(".tab-pane.active");
 
 		// next button should be active if the visible form fields are validated
 		// and the active pane is not the last pane
 		if (isFormValid({visibleOnly: true}) && ! activePane.is(":last-child")) {
-			nextButton.prop('disabled', false);
+			$nextButton.prop('disabled', false);
 		}
 		else {
-			nextButton.prop('disabled', true);
+			$nextButton.prop('disabled', true);
 		}
 
 		// previous button should be active as long as the active pane isn't the first
 		if (activePane.is(":first-child")) {
-			prevButton.prop('disabled', true);
+			$prevButton.prop('disabled', true);
 		}
 		else {
-			prevButton.prop('disabled', false);
+			$prevButton.prop('disabled', false);
 		}
 	}
 
